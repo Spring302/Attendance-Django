@@ -1,0 +1,31 @@
+version: "3"
+services:
+  db:
+    image: postgres
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_DB=reboot1
+      - POSTGRES_USER=reboot1
+      - POSTGRES_PASSWORD=reboot1
+      - POSTGRES_INITDB_ARG=--encoding=UTF-8
+    # volumes:
+    #   - ./pgdata:/var/lib/postgresql/data
+  backend:
+    build: "./backend"
+    environment:
+      - DB_HOST=db
+      - DB_NAME=reboot1
+      - DB_USER=reboot1
+      - DB_PASS=reboot1
+    entrypoint: ./wait-for-it.sh 0.0.0.0:5432 --
+    command:
+      - bash
+      - -c
+      - |
+        python manage.py migrate
+        python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
