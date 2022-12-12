@@ -1,7 +1,8 @@
 from django.db import models
 from django.utils import timezone
-from .utils.time_utils import *
-
+from datetime import date
+from .validators import validate_tag
+from .utils.time_utils import working_timezone
 
 class DailyRecord(models.Model):
     user_id = models.IntegerField(null=False)
@@ -14,5 +15,5 @@ class DailyRecord(models.Model):
 
 class AccessRecord(models.Model):
     user_id = models.IntegerField(null=False)
-    tag = models.CharField(max_length=10, default="IN")
+    tag = models.CharField(max_length=10, default="IN", validators=[validate_tag])
     check_time = models.DateTimeField(default=timezone.now)

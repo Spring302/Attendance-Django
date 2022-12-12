@@ -1,14 +1,30 @@
-# 원티드랩 Python 개발자 면접 과제
+# Django Record Plate
+
+장고 프로젝트 재사용을 위한 보일러 플레이트
+
+로그인 기록 작성 및 일별기록 확인가능한 RESTAPI 제공
 
 ## 실행방법
 
+```Bash
+# dev
 docker-compose up -d
+
+# product
+docker-compose -f docker-compose.prod.yaml up --build
+```
 
 ## 시스템 구성
 
-- Backend : Django (Django Rest Framework)
+- Backend : Django (Django Rest Framework)  + Nginx + Gunicorn + Docker
 - DB : PostgreSQL
 - Infra : Docker
+
+## 사용 기술
+
+- Django Rest Framework
+- Django + Nginx + Gunicorn + Docker
+- dj-rest-auth : REST API를 통한 로그인/로그아웃 제공
 
 ## 데이터베이스 설계
 
@@ -16,64 +32,77 @@ docker-compose up -d
 
 ## API 설계
 
-| INDEX | METHOD | URL                    | DESCRIPTION          |
-| ----- | ------ | ---------------------- | -------------------- |
-| 1     | GET    | /access                | 출입기록 리스트 조회 |
-| 2     | POST   | /access                | 출입기록 작성        |
-| 3     | GET    | /access/{id}           | ID별 출입기록 조회   |
-| 4     | PUT    | /access/{id}           | ID별 출입기록 수정   |
-| 5     | DELETE | /access/{id}           | ID별 출입기록 삭제   |
-| 6     | GET    | /access/user/{user_id} | 유저별 출입기록 조회 |
-| 7     | GET    | /daily                 | 일별기록 리스트 조회 |
-| 8     | POST   | /daily                 | 일별기록 작성        |
-| 9     | GET    | /daily/{id}            | ID별 일별기록 조회   |
-| 10    | PUT    | /daily/{id}            | ID별 일별기록 수정   |
-| 11    | DELETE | /daily/{id}            | ID별 일별기록 삭제   |
-| 12    | GET    | /daily/user/{user_id}  | 유저별 일별기록 조회 |
+| INDEX | METHOD | URL                    | DESCRIPTION             |
+| ----- | ------ | ---------------------- | ----------------------- |
+| 1     | GET    | /access                | 로그인 기록 리스트 조회 |
+| 2     | POST   | /access                | 로그인 기록 작성        |
+| 3     | GET    | /access/{id}           | ID별 로그인 기록 조회   |
+| 4     | PUT    | /access/{id}           | ID별 로그인 기록 수정   |
+| 5     | DELETE | /access/{id}           | ID별 로그인 기록 삭제   |
+| 6     | GET    | /access/user/{user_id} | 유저별 로그인 기록 조회 |
+| 7     | GET    | /daily                 | 일별기록 리스트 조회    |
+| 8     | POST   | /daily                 | 일별기록 작성           |
+| 9     | GET    | /daily/{id}            | ID별 일별기록 조회      |
+| 10    | PUT    | /daily/{id}            | ID별 일별기록 수정      |
+| 11    | DELETE | /daily/{id}            | ID별 일별기록 삭제      |
+| 12    | GET    | /daily/user/{user_id}  | 유저별 일별기록 조회    |
 
-## API 접근 관리자 계정
+## 주요 업데이트
 
-- ID: root
-- PASSWORD : root
+### 1. Nginx + Gunicorn + Django + Docker
 
-## 요구사항
+- Nginx + Gunicorn + Django + Docker 환경 구성
 
-게이트 출입 기록을 통해 직원들의 일별 근무시간과 휴게시간을 기록하려고 합니다.
+- 참고 사이트
+  1. [[실전] Docker + Nginx + gunicorn + django](https://velog.io/@masterkorea01/Docker-Nginx-gunicorn-django)
+  2. [웹서비스의 구성 - Web Server , CGI, WAS , WSGI의 특징 및 차이점](https://my-repo.tistory.com/20?category=918048)
 
-개인별로 등록된 카드키를 통해 게이트를 출입하게 되며, 입구와 출구가 분리되어 각각 IN, OUT 태그와 시간을 함께 기록할 수 있습니다.
+### 2. Swagger 적용
 
-출퇴근 기록이 되면 일별로 근무시간이 기록됩니다.
+- Django REST Swagger(drf_yasg module)을 적용하여 API 문서 생성
+- Swagger 에서 POST 실행 시 csrf token 에러가 발생하는데 Responses Curl 부분과 쿠키를 맞춰주면 해결된다.
 
-- 출근은 하루 중 가장 먼저 들어온 시간, 퇴근은 하루 중 가장 마지막으로 나간 시간입니다.
-- 하루 중 사무실에 들어와서 나간 시간까지의 합이 근무시간이며, 근무 시간 중에 나가있었던 시간은 휴게시간이 됩니다.
-- 하루의 기준은 오전6시에서 다음 날 오전 6시까지입니다.
-- 직원들은 종종 태그를 찍지 않고 출입합니다.
+### 3. Test Code 적용
 
-## 유의 조건 처리
+### - 테스트 종류
 
-1. 직원들은 종종 태그를 찍지 않고 출입합니다.
-    - CASE 1: 출입 (IN) 기록 후 (OUT) 기록을 하지 않고 다시 (IN) 하는 경우
-        - 변동사항없음
-    - CASE 2: (OUT) 기록 후 (IN) 기록을 하지 않고 다시 (OUT) 하는 경우
-        - 퇴근시간만 현재시간으로 변경
-    - CASE 3: (IN) 기록 후 (OUT) 기록을 하지 않고 다음 날 오전 6시가 지난경우
-        - 퇴근시간이 NULL
-    - CASE 4: 출근 시 (IN)을 하지 않고 퇴근 (OUT)만 기록한경우
-        - 출근시간을 퇴근시간과 같도록 처리
+1. unit test(유닛테스트)
+   - 독립적인 class와 function 단위의 테스트
+2. Regression test(버그 수정 테스트)
+   - 발생하였던 버그에 대한 수정 테스트
+3. Integration test(통합테스트)
+   - 유닛 테스크를 완료한 각각의 독립적인 컴포넌트들이 함께 결합하여 수행하는 동작을 검증.
+   - 각 컴포넌트들의 내부적인 동작까지는 검증할 필요가 없다. 해석해보면 비즈니스 로직에 대한 검증인거 같다
 
-    ⇒ 해당 예외사항들은 접근 기록을 관리자 권한에서 API를 통해 수정 할 수 있도록 구현(API INDEX 4)
+### - 테스트 함수
 
-2. 관리자가 미래 시점의 기록을 생성하는 경우
-    - 원칙적으로 금지하도록 구현(Bad Request)
+```python
+self.assertEquals # 생각한 값과 같은지 체크해주는 함수
+self.assertTrue(True) # () 안의 값이 True인지 체크
+self.assertFalse(False) # () 안의 값이 False인지 체크
+```
 
-3. 하루의 기준은 오전 6시에서 다음 날 오전 6시 까지입니다.
-    - CASE 1: 오전 3시에 출입하는 경우
-        - 어제 날짜에 출퇴근 기록이 되도록 구성
+### - Test Setting
 
-## 감사합니다
+Test용 DB가 따로 생성되기 때문에 superuser 등 기본 세팅을 해줘야한다.
 
-귀 사의 코딩 면접 기회를 주셔서 감사드립니다.
-본 테스트를 통해 많은 경험을 할 수 있었고
-앞으로의 방향에 대해 많은 깨달음을 얻을 수 있었습니다.
-귀 사의 무궁한 발전을 기원드리며 다음 면접 때 뵐 수 있기를 기대하겠습니다.
-감사합니다.
+- 참고 사이트 : https://docs.djangoproject.com/en/4.1/topics/testing/overview/
+
+### - Django Rest Framework의 Testing
+
+APIRequestFactory를 통해 CRUD 테스트를 짧은 코드로도 만들 수 있다.
+
+- 참고 사이트 : https://www.django-rest-framework.org/api-guide/testing/
+
+### 4. 유효성 검사 (validators)
+
+- AccessRecord 모델의 tag는 IN, OUT만 가능하도록 제한이 필요하다고 느꼈음
+- 모델에 validators 인수를 추가하면 가능하다. 처음엔 안되서 찾아보니 Django Rest Framework에서는 serializers.py에 추가해야한다는 설명이 있는데 모델에 추가해야 동작했다.
+- 참고 사이트 : https://docs.djangoproject.com/en/4.1/ref/validators/
+
+### 5. MultipleValueDictKeyError 수정
+
+```python
+data["check_time"] # 데이터가 존재하지 않을 경우 MultipleValueDictKeyError
+data.get("check_time", False) # 데이터가 없으면 False로 처리
+```

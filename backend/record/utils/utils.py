@@ -80,6 +80,7 @@ def record_daily_now(data):
 def binary_search(target, record):
     left = 0
     right = len(record) - 1
+    mid = 0
     while left <= right:
         mid = (left + right) // 2
         if record[mid]["check_time"] == target:
@@ -99,8 +100,9 @@ def update_daily_now(data):
                 row["working_time"] = int(row["working_time"]) + check_inout_time_minute(today_access, DAILY_OFFSET)
     return data
 
+
 def is_record_now(data):
-    if data["check_time"]:
+    if data.get("check_time", False):
         return False
     return True
 
@@ -133,7 +135,7 @@ def load_access_record(data, date=timezone.now()):
 
 
 def is_record_future_time(data):
-    if data["check_time"]:
+    if data.get("check_time", False):
         record_time = datetime.fromisoformat(data["check_time"])
         now_time = timezone.now()
         if now_time < record_time:

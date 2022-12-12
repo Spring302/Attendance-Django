@@ -5,27 +5,31 @@ services:
     ports:
       - 5432:5432
     environment:
-      - POSTGRES_DB=reboot1
-      - POSTGRES_USER=reboot1
-      - POSTGRES_PASSWORD=reboot1
+      - POSTGRES_DB=template
+      - POSTGRES_USER=template
+      - POSTGRES_PASSWORD=template
       - POSTGRES_INITDB_ARG=--encoding=UTF-8
     # volumes:
     #   - ./pgdata:/var/lib/postgresql/data
   backend:
     build: "./backend"
     environment:
+      - IS_DOCKER=True
       - DB_HOST=db
-      - DB_NAME=reboot1
-      - DB_USER=reboot1
-      - DB_PASS=reboot1
-    entrypoint: ./wait-for-it.sh 0.0.0.0:5432 --
+      - DB_NAME=template
+      - DB_USER=template
+      - DB_PASS=template
+    entrypoint: ./wait-for-it.sh -t 2 0.0.0.0:5432 --
     command:
       - bash
       - -c
       - |
         python manage.py makemigrations
         python manage.py migrate
-        echo "from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.create_superuser('root', 'admin@myproject.com', 'root')" | python manage.py shell
+        echo "from django.contrib.auth import get_user_model;
+        User = get_user_model(); 
+        user = User.objects.filter(is_superuser=True);
+        if not user: User.objects.create_superuser('template', 'admin@myproject.com', 'template');" | python manage.py shell
         python manage.py runserver 0.0.0.0:8000
     ports:
       - "8000:8000"
