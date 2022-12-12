@@ -3,6 +3,7 @@
 
 ##
 pgdata
+static/
 ### Django ###
 *.log
 *.pot
