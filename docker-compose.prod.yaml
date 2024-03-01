@@ -3,11 +3,11 @@ services:
   db:
     image: postgres
     ports:
-      - 5432:5432
+      - 5433:5432
     environment:
-      - POSTGRES_DB=template
-      - POSTGRES_USER=template
-      - POSTGRES_PASSWORD=template
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
       - POSTGRES_INITDB_ARG=--encoding=UTF-8
     # volumes:
     #   - ./pgdata:/var/lib/postgresql/data
@@ -15,10 +15,11 @@ services:
     build: "./backend"
     environment:
       - DB_HOST=db
-      - DB_NAME=template
-      - DB_USER=template
-      - DB_PASS=template
-    entrypoint: ./wait-for-it.sh -t 2 0.0.0.0:5432 --
+      - DB_NAME=postgres
+      - DB_USER=postgres
+      - DB_PASS=postgres
+      - DB_PORT=5432
+    entrypoint: ./wait-for-it.sh -t 5 db:5432 --
     command:
       - bash
       - -c

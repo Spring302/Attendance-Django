@@ -1,6 +1,6 @@
 from django.contrib import admin
-from .models import AccessRecord, DailyRecord
+from .models import LoginAccess, DailyRecord
 
 # Register your models here.
-admin.site.register(AccessRecord)
+admin.site.register(LoginAccess)
 admin.site.register(DailyRecord)

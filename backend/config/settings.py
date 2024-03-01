@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 from pathlib import Path
 import os
 
+VERSION = '1.0.0'
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -26,7 +28,7 @@ SECRET_KEY = "django-insecure-7h9^mqx(!)hz+5+jor!-0q_-b@7x&&3koun8!5++c6mw1$pg0t
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["backend", "127.0.0.1"]
+ALLOWED_HOSTS = ["backend", "127.0.0.1", "localhost"]
 
 
 # Application definition
@@ -78,25 +80,25 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
-IS_DOCKER = os.environ.get("IS_DOCKER", False)
-if IS_DOCKER:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "HOST": os.environ.get("DB_HOST", "localhost"),
-            "NAME": os.environ.get("DB_NAME", "reboot"),
-            "USER": os.environ.get("DB_USER", "reboot"),
-            "PASSWORD": os.environ.get("DB_PASS", "reboot"),
-            "PORT": os.environ.get("DB_PORT", 5432),
-        }
+
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.sqlite3",
+#         "NAME": BASE_DIR / "db.sqlite3",
+#     }
+# }
+
+# DOCKER POSTGRESQL
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "HOST": os.environ.get("DB_HOST", "localhost"),
+        "NAME": os.environ.get("DB_NAME", "postgres"),
+        "USER": os.environ.get("DB_USER", "postgres"),
+        "PASSWORD": os.environ.get("DB_PASS", "postgres"),
+        "PORT": os.environ.get("DB_PORT", 5433),
     }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": BASE_DIR / "db.sqlite3",
-        }
-    }    
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
@@ -134,9 +136,15 @@ USE_TZ = False
 
 STATIC_URL = "static/"
 
+# STATIC_ROOT = "static/"
 STATIC_ROOT = os.path.join(BASE_DIR, "static/")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+REST_FRAMEWORK = {
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
+    "PAGE_SIZE": 2,
+}

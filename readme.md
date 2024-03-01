@@ -10,8 +10,20 @@
 # dev
 docker-compose up -d
 
+# db test
+docker-compose -f docker-compose.db.yaml up --build
+
 # product
 docker-compose -f docker-compose.prod.yaml up --build
+
+# logs
+docker-compose logs
+
+# down
+docker-compose down
+
+# docker bash 접속
+docker exec -it 'name' bash
 ```
 
 ## 시스템 구성
@@ -32,20 +44,20 @@ docker-compose -f docker-compose.prod.yaml up --build
 
 ## API 설계
 
-| INDEX | METHOD | URL                    | DESCRIPTION             |
-| ----- | ------ | ---------------------- | ----------------------- |
-| 1     | GET    | /access                | 로그인 기록 리스트 조회 |
-| 2     | POST   | /access                | 로그인 기록 작성        |
-| 3     | GET    | /access/{id}           | ID별 로그인 기록 조회   |
-| 4     | PUT    | /access/{id}           | ID별 로그인 기록 수정   |
-| 5     | DELETE | /access/{id}           | ID별 로그인 기록 삭제   |
-| 6     | GET    | /access/user/{user_id} | 유저별 로그인 기록 조회 |
-| 7     | GET    | /daily                 | 일별기록 리스트 조회    |
-| 8     | POST   | /daily                 | 일별기록 작성           |
-| 9     | GET    | /daily/{id}            | ID별 일별기록 조회      |
-| 10    | PUT    | /daily/{id}            | ID별 일별기록 수정      |
-| 11    | DELETE | /daily/{id}            | ID별 일별기록 삭제      |
-| 12    | GET    | /daily/user/{user_id}  | 유저별 일별기록 조회    |
+| INDEX | METHOD | URL                   | DESCRIPTION             |
+| ----- | ------ | --------------------- | ----------------------- |
+| 1     | GET    | /login                | 로그인 기록 리스트 조회 |
+| 2     | POST   | /login                | 로그인 기록 작성        |
+| 3     | GET    | /login/{id}           | ID별 로그인 기록 조회   |
+| 4     | PUT    | /login/{id}           | ID별 로그인 기록 수정   |
+| 5     | DELETE | /login/{id}           | ID별 로그인 기록 삭제   |
+| 6     | GET    | /login/user/{user_id} | 유저별 로그인 기록 조회 |
+| 7     | GET    | /daily                | 일별기록 리스트 조회    |
+| 8     | POST   | /daily                | 일별기록 작성           |
+| 9     | GET    | /daily/{id}           | ID별 일별기록 조회      |
+| 10    | PUT    | /daily/{id}           | ID별 일별기록 수정      |
+| 11    | DELETE | /daily/{id}           | ID별 일별기록 삭제      |
+| 12    | GET    | /daily/user/{user_id} | 유저별 일별기록 조회    |
 
 ## 주요 업데이트
 
@@ -96,7 +108,7 @@ APIRequestFactory를 통해 CRUD 테스트를 짧은 코드로도 만들 수 있
 
 ### 4. 유효성 검사 (validators)
 
-- AccessRecord 모델의 tag는 IN, OUT만 가능하도록 제한이 필요하다고 느꼈음
+- LoginAccess 모델의 tag는 IN, OUT만 가능하도록 제한이 필요하다고 느꼈음
 - 모델에 validators 인수를 추가하면 가능하다. 처음엔 안되서 찾아보니 Django Rest Framework에서는 serializers.py에 추가해야한다는 설명이 있는데 모델에 추가해야 동작했다.
 - 참고 사이트 : https://docs.djangoproject.com/en/4.1/ref/validators/
 
@@ -105,4 +117,67 @@ APIRequestFactory를 통해 CRUD 테스트를 짧은 코드로도 만들 수 있
 ```python
 data["check_time"] # 데이터가 존재하지 않을 경우 MultipleValueDictKeyError
 data.get("check_time", False) # 데이터가 없으면 False로 처리
+```
+
+### 6. validator 대신 Enum으로 변경
+
+출입 Tag 값을 IN, OUT로 선택할 수 있도록 바꿨다. 이를 통해 잘못된 값이 들어오는 것을 방지하고 사용자가 어떤 값을 입력해야 할지 명확해졌다.
+
+```python
+# 변경 전
+tag = models.CharField(max_length=10, default="IN", validators=[validate_tag])
+
+# 변경 후
+class TagChoices(Enum):
+    IN = 'IN'
+    OUT = 'OUT'
+
+tag = models.CharField(max_length=10, choices=[(tag.value, tag.name) for tag in TagChoices], default=TagChoices.IN.value)
+```
+
+### 7. LoginAccess 기록 알고리즘 수정
+
+기존 알고리즘의 경우 불필요한 if가 남발되어 수정하였다.
+
+```python
+class LoginAccess(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    tag = models.CharField(max_length=10, choices=[(tag.value, tag.name) for tag in TagChoices], default=TagChoices.IN.value)
+    check_time = models.DateTimeField(default=timezone.now)
+
+    def save(self, *args, **kwargs):
+        # 태그가 OUT일 경우 처리
+        if self.tag == TagChoices.OUT.value:
+            last_login_in = LoginAccess.objects.filter(user=self.user, tag=TagChoices.IN.value).order_by('-check_time').first()
+            # 오늘 출근한 적이 있으면 출석기록을 가져와서 leave_time, working_time 계산 후 저장한다.
+            if last_login_in:
+                last_daily_record = DailyRecord.objects.filter(user=self.user, date=last_login_in.check_time.date()).first()
+                if last_daily_record:
+                    last_daily_record.leave_time = self.check_time
+                    last_daily_record.save()
+                    last_daily_record.working_time = (last_daily_record.leave_time - last_daily_record.go_time).seconds // 3600
+                    last_daily_record.save()
+                else:
+                    # Handle case if no previous DailyRecord is found
+                    pass
+            else:
+                # Handle case if no previous LoginAccess with tag IN is found
+                pass
+        super(LoginAccess, self).save(*args, **kwargs)
+```
+
+### 8. wait-for-it.sh 사용 유의사항
+
+- OS가 windows인지 unix 인지에 따라 오류가 발생함.
+- docker container는 unix 기반이기 때문에 windows에서 코드를 복붙 후 실행하면 CRLF(\r\n), CR(\r), LF(\n) 문제가 발생할 수 있으니 주의
+
+### 9. static file 인식 문제 해결
+
+product 버전으로 실행 시 static file을 인식하지 못하는 문제가 있었다.
+다음과 같이 url에 static 파일 경로를 설정해줘야 인식했다.
+
+```python
+urlpatterns = [
+    ...
+] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 ```
