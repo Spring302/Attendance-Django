@@ -1,15 +1,9 @@
-from django.urls import path
-from rest_framework.urlpatterns import format_suffix_patterns
-from . import views
+from rest_framework.routers import DefaultRouter
+from record.views import UserViewSet, DailyRecordViewSet, LoginAccessViewSet
 
-urlpatterns = [
-    path("daily/", views.DailyRecordList.as_view()),
-    path("daily/<int:pk>/", views.DailyRecordDetail.as_view()),
-    path("daily/user/<int:user_id>/", views.DailyRecordUserList.as_view()),
-    path("daily/today/", views.DailyRecordDetail.as_view()),
-    path("access/", views.AccessRecordList.as_view()),
-    path("access/<int:pk>/", views.AccessRecordDetail.as_view()),
-    path("access/user/<int:user_id>/", views.AccessRecordUserList.as_view()),
-]
+router = DefaultRouter()
+router.register(r'users', UserViewSet)
+router.register(r'dailyrecords', DailyRecordViewSet)
+router.register(r'loginaccess', LoginAccessViewSet)
 
-urlpatterns = format_suffix_patterns(urlpatterns)
+urlpatterns = router.urls
